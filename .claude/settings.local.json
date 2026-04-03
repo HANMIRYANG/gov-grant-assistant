@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/한미르_IT/Desktop/DaliyWork/**)",
+      "Bash(mkdir -p _backup_gov)",
+      "Bash(cp -r gov-grant-assistant/.env.local gov-grant-assistant/.gitignore gov-grant-assistant/CLAUDE.md gov-grant-assistant/CLAUDE_CODE_GUIDE.md gov-grant-assistant/README.md gov-grant-assistant/vercel.json gov-grant-assistant/supabase _backup_gov/)",
+      "Bash(npx create-next-app@latest:*)",
+      "Bash(rm -rf /c/Users/한미르_IT/Desktop/DaliyWork/_backup_gov/supabase)",
+      "Bash(mv .env.local CLAUDE.md CLAUDE_CODE_GUIDE.md README.md vercel.json supabase /c/Users/한미르_IT/Desktop/DaliyWork/_backup_gov/)"
+    ]
+  }
+}
