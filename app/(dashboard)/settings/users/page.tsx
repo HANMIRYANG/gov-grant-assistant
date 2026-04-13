@@ -19,7 +19,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Pencil, UserPlus, Shield, ShieldCheck } from "lucide-react";
+import { Pencil, UserPlus, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils/helpers";
 
@@ -30,6 +30,8 @@ interface UserForm {
   position: string;
   role: UserRole;
   phone: string;
+  employee_code: string;
+  password: string;
   is_active: boolean;
 }
 
@@ -40,6 +42,8 @@ const emptyForm: UserForm = {
   position: "",
   role: "researcher",
   phone: "",
+  employee_code: "",
+  password: "",
   is_active: true,
 };
 
@@ -72,6 +76,12 @@ export default function UsersPage() {
 
   useEffect(() => { loadUsers(); }, [loadUsers]);
 
+  function openCreate() {
+    setEditingId(null);
+    setForm(emptyForm);
+    setDialogOpen(true);
+  }
+
   function openEdit(user: UserProfile) {
     setEditingId(user.id);
     setForm({
@@ -81,6 +91,8 @@ export default function UsersPage() {
       position: user.position || "",
       role: user.role,
       phone: user.phone || "",
+      employee_code: user.employee_code || "",
+      password: "",
       is_active: user.is_active,
     });
     setDialogOpen(true);
@@ -92,8 +104,35 @@ export default function UsersPage() {
       return;
     }
 
+    if (form.employee_code && !/^H-\d{3,}$/.test(form.employee_code)) {
+      toast.error("사원번호 형식이 올바르지 않습니다. (예: H-001)");
+      return;
+    }
+
     if (!editingId) {
-      toast.error("사용자 수정만 지원됩니다. 새 사용자는 Supabase Auth에서 생성 후 프로필을 수정해주세요.");
+      if (!form.email) {
+        toast.error("이메일을 입력해주세요.");
+        return;
+      }
+      if (!form.password || form.password.length < 8) {
+        toast.error("초기 비밀번호는 8자 이상이어야 합니다.");
+        return;
+      }
+
+      const res = await fetch(`/api/users`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      if (res.ok) {
+        toast.success("직원이 등록되었습니다.");
+        setDialogOpen(false);
+        loadUsers();
+      } else {
+        const err = await res.json();
+        toast.error(err.error || "등록 실패");
+      }
       return;
     }
 
@@ -138,6 +177,10 @@ export default function UsersPage() {
             {"시스템 사용자 역할 및 프로필 관리"}
           </p>
         </div>
+        <Button onClick={openCreate}>
+          <UserPlus className="mr-2 h-4 w-4" />
+          {"직원 등록"}
+        </Button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-4">
@@ -170,6 +213,7 @@ export default function UsersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>{"사원번호"}</TableHead>
                   <TableHead>{"이름"}</TableHead>
                   <TableHead>{"이메일"}</TableHead>
                   <TableHead>{"부서"}</TableHead>
@@ -183,16 +227,19 @@ export default function UsersPage() {
               <TableBody>
                 {users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                       {"등록된 사용자가 없습니다."}
                       <p className="mt-2 text-sm">
-                        {"Supabase Auth에서 사용자를 생성하면 자동으로 표시됩니다."}
+                        {"우측 상단 [직원 등록] 버튼으로 신규 직원을 추가하세요."}
                       </p>
                     </TableCell>
                   </TableRow>
                 ) : (
                   users.map((user) => (
                     <TableRow key={user.id} className={!user.is_active ? "opacity-50" : ""}>
+                      <TableCell className="font-mono text-sm">
+                        {user.employee_code || <span className="text-muted-foreground">{"-"}</span>}
+                      </TableCell>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           {user.role === "admin" && <ShieldCheck className="h-4 w-4 text-red-500" />}
@@ -231,13 +278,23 @@ export default function UsersPage() {
         </Card>
       )}
 
-      {/* 수정 다이얼로그 */}
+      {/* 등록/수정 다이얼로그 */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{"사용자 정보 수정"}</DialogTitle>
+            <DialogTitle>
+              {editingId ? "사용자 정보 수정" : "신규 직원 등록"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {!editingId && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                <p className="font-semibold">{"keeper-calendar 사원번호 확인 필수"}</p>
+                <p className="mt-1">
+                  {"keeper-calendar /admin/employees 페이지에서 H-번호를 확인 후 동일하게 입력하세요. (예: H-001)"}
+                </p>
+              </div>
+            )}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>{"이름"} *</Label>
@@ -247,9 +304,35 @@ export default function UsersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>{"이메일"}</Label>
-                <Input value={form.email} disabled className="bg-muted" />
+                <Label>{"이메일"} {!editingId && "*"}</Label>
+                <Input
+                  value={form.email}
+                  disabled={!!editingId}
+                  className={editingId ? "bg-muted" : ""}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  placeholder={"name@hanmir.com"}
+                />
               </div>
+              <div className="space-y-2">
+                <Label>{"사원번호"}</Label>
+                <Input
+                  value={form.employee_code}
+                  onChange={(e) => setForm({ ...form, employee_code: e.target.value })}
+                  placeholder={"H-001"}
+                  className="font-mono"
+                />
+              </div>
+              {!editingId && (
+                <div className="space-y-2">
+                  <Label>{"초기 비밀번호"} *</Label>
+                  <Input
+                    type="password"
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    placeholder={"8자 이상"}
+                  />
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>{"부서"}</Label>
                 <Input
@@ -308,7 +391,7 @@ export default function UsersPage() {
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 {"취소"}
               </Button>
-              <Button onClick={handleSave}>{"저장"}</Button>
+              <Button onClick={handleSave}>{editingId ? "저장" : "등록"}</Button>
             </div>
           </div>
         </DialogContent>

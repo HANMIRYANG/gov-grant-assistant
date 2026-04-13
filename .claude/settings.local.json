@@ -52,7 +52,13 @@
       "Bash(grep -r \"label\" node_modules/@base-ui/react/esm/select/item/SelectItem*.d.ts)",
       "Bash(npx prisma:*)",
       "Bash(openssl rand:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git remote:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(claude:*)",
+      "Bash(npm view:*)"
     ]
   }
 }
